@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team Task Tracker</title>
+  <style>
+    :root {
+      --bg-color: #f4f6f8;
+      --card-bg: #ffffff;
+      --text-color: #333333;
+      --primary-color: #2563eb;
+      --primary-hover: #1d4ed8;
+      --pending-bg: #ffe4e6;
+      --pending-text: #9f1239;
+      --completed-bg: #dcfce7;
+      --completed-text: #166534;
+      --border-color: #e5e7eb;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+      text-align: center;
+      color: #1e293b;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #475569;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 1rem;
+      background-color: #fff;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .select-wrapper {
+      position: relative;
+    }
+
+    .select-wrapper::after {
+      content: "▼";
+      font-size: 0.75rem;
+      top: 16px;
+      right: 12px;
+      position: absolute;
+      color: #64748b;
+      pointer-events: none;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-add {
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .btn-add:active {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-export {
+      background-color: #059669;
+      color: white;
+    }
+
+    .btn-export:active {
+      background-color: #047857;
+    }
+
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .task-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      border-left: 6px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-card.pending {
+      background-color: var(--pending-bg);
+      border-left-color: #f43f5e;
+    }
+
+    .task-card.pending .task-title,
+    .task-card.pending .task-meta {
+      color: var(--pending-text);
+    }
+
+    .task-card.completed {
+      background-color: var(--completed-bg);
+      border-left-color: #22c55e;
+    }
+
+    .task-card.completed .task-title,
+    .task-card.completed .task-meta {
+      color: var(--completed-text);
+    }
+
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .task-title {
+      font-weight: 700;
+      font-size: 1.05rem;
+      word-break: break-word;
+    }
+
+    .task-meta {
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .task-actions select {
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      height: 36px;
+    }
+
+    .btn-delete {
+      background: #ef4444;
+      color: white;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      flex: none;
+      width: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Team Job Tracker</h1>
+
+  <!-- Form Section -->
+  <div class="card">
+    <div class="form-group">
+      <label for="taskName">Task Description</label>
+      <input type="text" id="taskName" placeholder="e.g., Review UI Wireframes">
+    </div>
+
+    <div class="form-group">
+      <label for="assignee">Assigned To</label>
+      <input type="text" id="assignee" placeholder="e.g., Alex">
+    </div>
+
+    <div class="form-group">
+      <label for="deadline">Deadline</label>
+      <div class="select-wrapper">
+        <select id="deadline">
+          <option value="Today">Today</option>
+          <option value="Tomorrow">Tomorrow</option>
+          <option value="This Week">This Week</option>
+          <option value="Next Week">Next Week</option>
+          <option value="End of Month">End of Month</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="status">Status</label>
+      <div class="select-wrapper">
+        <select id="status">
+          <option value="Pending">Pending</option>
+          <option value="Completed">Completed</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-add" onclick="addTask()">Add Task</button>
+      <button class="btn-export" onclick="exportCSV()">Download CSV</button>
+    </div>
+  </div>
+
+  <!-- Task Display Section -->
+  <div class="task-list" id="taskList"></div>
+
+  <script>
+    let tasks = JSON.parse(localStorage.getItem('teamTasks')) || [];
+
+    function saveTasks() {
+      localStorage.setItem('teamTasks', JSON.stringify(tasks));
+    }
+
+    function renderTasks() {
+      const taskList = document.getElementById('taskList');
+      taskList.innerHTML = '';
+
+      tasks.forEach((task, index) => {
+        const taskCard = document.createElement('div');
+        const statusClass = task.status.toLowerCase();
+        taskCard.className = `task-card ${statusClass}`;
+
+        taskCard.innerHTML = `
+          <div class="task-header">
+            <span class="task-title">${escapeHtml(task.name)}</span>
+          </div>
+          <div class="task-meta">
+            👤 <strong>Assigned to:</strong> ${escapeHtml(task.assignee || 'Unassigned')}<br>
+            📅 <strong>Deadline:</strong> ${task.deadline}
+          </div>
+          <div class="task-actions">
+            <div class="select-wrapper" style="flex: 1;">
+              <select onchange="updateStatus(${index}, this.value)">
+                <option value="Pending" ${task.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                <option value="Completed" ${task.status === 'Completed' ? 'selected' : ''}>Completed</option>
+              </select>
+            </div>
+            <button class="btn-delete" onclick="deleteTask(${index})">Delete</button>
+          </div>
+        `;
+        taskList.appendChild(taskCard);
+      });
+    }
+
+    function addTask() {
+      const nameInput = document.getElementById('taskName');
+      const assigneeInput = document.getElementById('assignee');
+      const deadlineInput = document.getElementById('deadline');
+      const statusInput = document.getElementById('status');
+
+      if (!nameInput.value.trim()) {
+        alert('Please enter a task description.');
+        return;
+      }
+
+      const newTask = {
+        id: Date.now(),
+        name: nameInput.value.trim(),
+        assignee: assigneeInput.value.trim(),
+        deadline: deadlineInput.value,
+        status: statusInput.value
+      };
+
+      tasks.push(newTask);
+      saveTasks();
+      renderTasks();
+
+      // Reset inputs
+      nameInput.value = '';
+      assigneeInput.value = '';
+    }
+
+    function updateStatus(index, newStatus) {
+      tasks[index].status = newStatus;
+      saveTasks();
+      renderTasks();
+    }
+
+    function deleteTask(index) {
+      tasks.splice(index, 1);
+      saveTasks();
+      renderTasks();
+    }
+
+    function exportCSV() {
+      if (tasks.length === 0) {
+        alert('No tasks to export!');
+        return;
+      }
+
+      let csvContent = "data:text/csv;charset=utf-8,Task Description,Assigned To,Deadline,Status\n";
+
+      tasks.forEach(task => {
+        const row = [
+          `"${task.name.replace(/"/g, '""')}"`,
+          `"${(task.assignee || '').replace(/"/g, '""')}"`,
+          `"${task.deadline}"`,
+          `"${task.status}"`
+        ].join(",");
+        csvContent += row + "\n";
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `team_tasks_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, function(m) {
+        return {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#039;'
+        }[m];
+      });
+    }
+
+    // Initial render
+    renderTasks();
+  </script>
+</body>
+</html>
