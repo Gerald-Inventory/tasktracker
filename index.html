@@ -67,6 +67,9 @@
       border-radius: 8px;
       font-size: 1rem;
       background-color: #fff;
+    }
+
+    select {
       appearance: none;
       -webkit-appearance: none;
     }
@@ -159,7 +162,7 @@
     .task-header {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: center;
     }
 
     .task-title {
@@ -173,9 +176,36 @@
       opacity: 0.9;
     }
 
+    .region-checkboxes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 6px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 6px;
+    }
+
+    .region-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: normal;
+      color: inherit;
+    }
+
+    .region-label input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
     .task-actions {
       display: flex;
       gap: 8px;
+      align-items: center;
       margin-top: 4px;
     }
 
@@ -189,9 +219,18 @@
       background: #ef4444;
       color: white;
       padding: 6px 12px;
-      font-size: 0.85rem;
+      font-size: 1rem;
       flex: none;
-      width: auto;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+    }
+
+    .btn-delete:hover {
+      background: #dc2626;
     }
   </style>
 </head>
@@ -208,20 +247,19 @@
 
     <div class="form-group">
       <label for="assignee">Assigned To</label>
-      <input type="text" id="assignee" placeholder="e.g., Alex">
+      <div class="select-wrapper">
+        <select id="assignee">
+          <option value="Tabuk">Tabuk</option>
+          <option value="Buraida">Buraida</option>
+          <option value="Hail">Hail</option>
+          <option value="Jouf">Jouf</option>
+        </select>
+      </div>
     </div>
 
     <div class="form-group">
       <label for="deadline">Deadline</label>
-      <div class="select-wrapper">
-        <select id="deadline">
-          <option value="Today">Today</option>
-          <option value="Tomorrow">Tomorrow</option>
-          <option value="This Week">This Week</option>
-          <option value="Next Week">Next Week</option>
-          <option value="End of Month">End of Month</option>
-        </select>
-      </div>
+      <input type="date" id="deadline">
     </div>
 
     <div class="form-group">
@@ -244,6 +282,7 @@
   <div class="task-list" id="taskList"></div>
 
   <script>
+    const LOCATIONS = ["Tabuk", "Buraida", "Hail", "Jouf"];
     let tasks = JSON.parse(localStorage.getItem('teamTasks')) || [];
 
     function saveTasks() {
@@ -255,17 +294,35 @@
       taskList.innerHTML = '';
 
       tasks.forEach((task, index) => {
+        // Initialize completedLocations object if not existing in legacy data
+        if (!task.completedLocations) {
+          task.completedLocations = { Tabuk: false, Buraida: false, Hail: false, Jouf: false };
+        }
+
         const taskCard = document.createElement('div');
         const statusClass = task.status.toLowerCase();
         taskCard.className = `task-card ${statusClass}`;
 
+        const locationCheckboxesHtml = LOCATIONS.map(loc => `
+          <label class="region-label">
+            <input type="checkbox" 
+                   ${task.completedLocations[loc] ? 'checked' : ''} 
+                   onchange="toggleLocationStatus(${index}, '${loc}', this.checked)">
+            ${loc}
+          </label>
+        `).join('');
+
         taskCard.innerHTML = `
           <div class="task-header">
             <span class="task-title">${escapeHtml(task.name)}</span>
+            <button class="btn-delete" onclick="deleteTask(${index})" title="Delete Task">🗑️</button>
           </div>
           <div class="task-meta">
             👤 <strong>Assigned to:</strong> ${escapeHtml(task.assignee || 'Unassigned')}<br>
-            📅 <strong>Deadline:</strong> ${task.deadline}
+            📅 <strong>Deadline:</strong> ${task.deadline || 'No date set'}
+          </div>
+          <div class="region-checkboxes">
+            ${locationCheckboxesHtml}
           </div>
           <div class="task-actions">
             <div class="select-wrapper" style="flex: 1;">
@@ -274,7 +331,6 @@
                 <option value="Completed" ${task.status === 'Completed' ? 'selected' : ''}>Completed</option>
               </select>
             </div>
-            <button class="btn-delete" onclick="deleteTask(${index})">Delete</button>
           </div>
         `;
         taskList.appendChild(taskCard);
@@ -295,18 +351,28 @@
       const newTask = {
         id: Date.now(),
         name: nameInput.value.trim(),
-        assignee: assigneeInput.value.trim(),
+        assignee: assigneeInput.value,
         deadline: deadlineInput.value,
-        status: statusInput.value
+        status: statusInput.value,
+        completedLocations: {
+          Tabuk: false,
+          Buraida: false,
+          Hail: false,
+          Jouf: false
+        }
       };
 
       tasks.push(newTask);
       saveTasks();
       renderTasks();
 
-      // Reset inputs
+      // Reset text input
       nameInput.value = '';
-      assigneeInput.value = '';
+    }
+
+    function toggleLocationStatus(taskIndex, location, isChecked) {
+      tasks[taskIndex].completedLocations[location] = isChecked;
+      saveTasks();
     }
 
     function updateStatus(index, newStatus) {
@@ -327,14 +393,16 @@
         return;
       }
 
-      let csvContent = "data:text/csv;charset=utf-8,Task Description,Assigned To,Deadline,Status\n";
+      let csvContent = "data:text/csv;charset=utf-8,Task Description,Assigned To,Deadline,Status,Completed Regions\n";
 
       tasks.forEach(task => {
+        const completedList = LOCATIONS.filter(loc => task.completedLocations && task.completedLocations[loc]).join("; ");
         const row = [
           `"${task.name.replace(/"/g, '""')}"`,
           `"${(task.assignee || '').replace(/"/g, '""')}"`,
-          `"${task.deadline}"`,
-          `"${task.status}"`
+          `"${task.deadline || ''}"`,
+          `"${task.status}"`,
+          `"${completedList}"`
         ].join(",");
         csvContent += row + "\n";
       });
