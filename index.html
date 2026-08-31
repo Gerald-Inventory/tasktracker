@@ -330,11 +330,17 @@
           task.completedLocations = { Tabuk: false, Buraida: false, Hail: false, Jouf: false };
         }
 
+        // Backward compatibility for legacy single-assignee strings
+        const assignedStores = Array.isArray(task.assignee) 
+          ? task.assignee 
+          : (task.assignee ? [task.assignee] : []);
+
         const taskCard = document.createElement('div');
         const statusClass = task.status.toLowerCase();
         taskCard.className = `task-card ${statusClass}`;
 
-        const locationCheckboxesHtml = LOCATIONS.map(loc => `
+        // Only render checkboxes for stores that were actually assigned to this task
+        const locationCheckboxesHtml = assignedStores.map(loc => `
           <label class="region-label">
             <input type="checkbox" 
                    ${task.completedLocations[loc] ? 'checked' : ''} 
@@ -343,9 +349,9 @@
           </label>
         `).join('');
 
-        const assigneeText = Array.isArray(task.assignee) 
-          ? (task.assignee.length === LOCATIONS.length ? 'All Stores' : task.assignee.join(', '))
-          : (task.assignee || 'Unassigned');
+        const assigneeText = assignedStores.length === LOCATIONS.length 
+          ? 'All Stores' 
+          : (assignedStores.join(', ') || 'Unassigned');
 
         taskCard.innerHTML = `
           <div class="task-header">
@@ -356,9 +362,7 @@
             👤 <strong>Assigned to:</strong> ${escapeHtml(assigneeText)}<br>
             📅 <strong>Deadline:</strong> ${task.deadline || 'No date set'}
           </div>
-          <div class="region-checkboxes">
-            ${locationCheckboxesHtml}
-          </div>
+          ${assignedStores.length > 0 ? `<div class="region-checkboxes">${locationCheckboxesHtml}</div>` : ''}
           <div class="task-actions">
             <div class="select-wrapper" style="flex: 1;">
               <select onchange="updateStatus(${index}, this.value)">
@@ -442,9 +446,13 @@
       let csvContent = "data:text/csv;charset=utf-8," + csvHeaders.join(",") + "\n";
 
       tasks.forEach(task => {
-        const assigneeText = Array.isArray(task.assignee) 
-          ? (task.assignee.length === LOCATIONS.length ? 'All Stores' : task.assignee.join('; '))
-          : (task.assignee || '');
+        const assignedStores = Array.isArray(task.assignee) 
+          ? task.assignee 
+          : (task.assignee ? [task.assignee] : []);
+
+        const assigneeText = assignedStores.length === LOCATIONS.length 
+          ? 'All Stores' 
+          : (assignedStores.join('; ') || 'Unassigned');
 
         let row = [
           `"${task.name.replace(/"/g, '""')}"`,
@@ -453,9 +461,15 @@
           `"${task.status}"`
         ];
 
+        // Export 'Yes', 'No', or 'N/A' based on assignment and completion state
         LOCATIONS.forEach(loc => {
-          const isDone = task.completedLocations && task.completedLocations[loc];
-          row.push(`"${isDone ? 'Yes' : 'No'}"`);
+          const isAssigned = assignedStores.includes(loc);
+          if (!isAssigned) {
+            row.push('"N/A"');
+          } else {
+            const isDone = task.completedLocations && task.completedLocations[loc];
+            row.push(`"${isDone ? 'Yes' : 'No'}"`);
+          }
         });
 
         csvContent += row.join(",") + "\n";
