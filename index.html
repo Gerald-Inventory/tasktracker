@@ -88,6 +88,16 @@
       pointer-events: none;
     }
 
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: #fff;
+    }
+
     .btn-group {
       display: flex;
       gap: 10px;
@@ -196,7 +206,8 @@
       color: inherit;
     }
 
-    .region-label input[type="checkbox"] {
+    .region-label input[type="checkbox"],
+    .checkbox-group input[type="checkbox"] {
       width: 16px;
       height: 16px;
       cursor: pointer;
@@ -246,14 +257,24 @@
     </div>
 
     <div class="form-group">
-      <label for="assignee">Assigned To</label>
-      <div class="select-wrapper">
-        <select id="assignee">
-          <option value="Tabuk">Tabuk</option>
-          <option value="Buraida">Buraida</option>
-          <option value="Hail">Hail</option>
-          <option value="Jouf">Jouf</option>
-        </select>
+      <label>Assigned To</label>
+      <div class="checkbox-group" id="assigneeContainer">
+        <label class="region-label">
+          <input type="checkbox" id="selectAllStores" onchange="toggleSelectAllStores(this.checked)">
+          <strong>All Stores</strong>
+        </label>
+        <label class="region-label">
+          <input type="checkbox" class="store-checkbox" value="Tabuk" onchange="handleStoreChange()"> Tabuk
+        </label>
+        <label class="region-label">
+          <input type="checkbox" class="store-checkbox" value="Buraida" onchange="handleStoreChange()"> Buraida
+        </label>
+        <label class="region-label">
+          <input type="checkbox" class="store-checkbox" value="Hail" onchange="handleStoreChange()"> Hail
+        </label>
+        <label class="region-label">
+          <input type="checkbox" class="store-checkbox" value="Jouf" onchange="handleStoreChange()"> Jouf
+        </label>
       </div>
     </div>
 
@@ -289,12 +310,22 @@
       localStorage.setItem('teamTasks', JSON.stringify(tasks));
     }
 
+    function toggleSelectAllStores(isChecked) {
+      const storeCheckboxes = document.querySelectorAll('.store-checkbox');
+      storeCheckboxes.forEach(cb => cb.checked = isChecked);
+    }
+
+    function handleStoreChange() {
+      const storeCheckboxes = Array.from(document.querySelectorAll('.store-checkbox'));
+      const selectAll = document.getElementById('selectAllStores');
+      selectAll.checked = storeCheckboxes.every(cb => cb.checked);
+    }
+
     function renderTasks() {
       const taskList = document.getElementById('taskList');
       taskList.innerHTML = '';
 
       tasks.forEach((task, index) => {
-        // Initialize completedLocations object if not existing in legacy data
         if (!task.completedLocations) {
           task.completedLocations = { Tabuk: false, Buraida: false, Hail: false, Jouf: false };
         }
@@ -312,13 +343,17 @@
           </label>
         `).join('');
 
+        const assigneeText = Array.isArray(task.assignee) 
+          ? (task.assignee.length === LOCATIONS.length ? 'All Stores' : task.assignee.join(', '))
+          : (task.assignee || 'Unassigned');
+
         taskCard.innerHTML = `
           <div class="task-header">
             <span class="task-title">${escapeHtml(task.name)}</span>
             <button class="btn-delete" onclick="deleteTask(${index})" title="Delete Task">🗑️</button>
           </div>
           <div class="task-meta">
-            👤 <strong>Assigned to:</strong> ${escapeHtml(task.assignee || 'Unassigned')}<br>
+            👤 <strong>Assigned to:</strong> ${escapeHtml(assigneeText)}<br>
             📅 <strong>Deadline:</strong> ${task.deadline || 'No date set'}
           </div>
           <div class="region-checkboxes">
@@ -339,19 +374,25 @@
 
     function addTask() {
       const nameInput = document.getElementById('taskName');
-      const assigneeInput = document.getElementById('assignee');
       const deadlineInput = document.getElementById('deadline');
       const statusInput = document.getElementById('status');
+      
+      const selectedAssignees = Array.from(document.querySelectorAll('.store-checkbox:checked')).map(cb => cb.value);
 
       if (!nameInput.value.trim()) {
         alert('Please enter a task description.');
         return;
       }
 
+      if (selectedAssignees.length === 0) {
+        alert('Please select at least one assigned store.');
+        return;
+      }
+
       const newTask = {
         id: Date.now(),
         name: nameInput.value.trim(),
-        assignee: assigneeInput.value,
+        assignee: selectedAssignees,
         deadline: deadlineInput.value,
         status: statusInput.value,
         completedLocations: {
@@ -366,8 +407,10 @@
       saveTasks();
       renderTasks();
 
-      // Reset text input
+      // Reset form controls
       nameInput.value = '';
+      document.getElementById('selectAllStores').checked = false;
+      document.querySelectorAll('.store-checkbox').forEach(cb => cb.checked = false);
     }
 
     function toggleLocationStatus(taskIndex, location, isChecked) {
@@ -393,18 +436,29 @@
         return;
       }
 
-      let csvContent = "data:text/csv;charset=utf-8,Task Description,Assigned To,Deadline,Status,Completed Regions\n";
+      let csvHeaders = ["Task Description", "Assigned To", "Deadline", "Overall Status"];
+      LOCATIONS.forEach(loc => csvHeaders.push(`${loc} Completed`));
+      
+      let csvContent = "data:text/csv;charset=utf-8," + csvHeaders.join(",") + "\n";
 
       tasks.forEach(task => {
-        const completedList = LOCATIONS.filter(loc => task.completedLocations && task.completedLocations[loc]).join("; ");
-        const row = [
+        const assigneeText = Array.isArray(task.assignee) 
+          ? (task.assignee.length === LOCATIONS.length ? 'All Stores' : task.assignee.join('; '))
+          : (task.assignee || '');
+
+        let row = [
           `"${task.name.replace(/"/g, '""')}"`,
-          `"${(task.assignee || '').replace(/"/g, '""')}"`,
+          `"${assigneeText.replace(/"/g, '""')}"`,
           `"${task.deadline || ''}"`,
-          `"${task.status}"`,
-          `"${completedList}"`
-        ].join(",");
-        csvContent += row + "\n";
+          `"${task.status}"`
+        ];
+
+        LOCATIONS.forEach(loc => {
+          const isDone = task.completedLocations && task.completedLocations[loc];
+          row.push(`"${isDone ? 'Yes' : 'No'}"`);
+        });
+
+        csvContent += row.join(",") + "\n";
       });
 
       const encodedUri = encodeURI(csvContent);
